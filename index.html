@@ -526,7 +526,7 @@ index
   </div>
 
   <script>
-    const STORAGE_KEY = 'alu_pmo_dashboard_v6';
+    const STORAGE_KEY = 'alu_pmo_dashboard_v7';
     let currentProjectId = null;
     let modalDraftItems = [];
     let charts = {};
@@ -1644,8 +1644,7 @@ index
         const m = computeProjectMetrics(p);
         return [p.fileNo, p.customer, p.address, getForemanName(p.foremanId), p.status, p.delayReason || '', m.fieldPct + '%', m.qaPct + '%', m.remaining, (p.notes || '').replace(/,/g, ' ')];
       });
-      const csv = '﻿' + [headers.join(','), ...rows.map(r => r.join(','))].join('
-');
+      const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
@@ -1705,11 +1704,16 @@ index
       renderOwnerView();
     }
 
-    // Init
-    document.getElementById('today-date').textContent = new Date().toLocaleDateString('ar-KW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    loadState();
-    refreshAll();
+        // Init
+    (function initDashboard() {
+      const dateEl = document.getElementById('today-date');
+      if (dateEl) {
+        dateEl.textContent = new Date().toLocaleDateString('ar-KW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      }
+      loadState();
+      refreshAll();
+    })();
   </script>
 </body>
 </html>
-Processed and analyzed in code
+Analyzing
