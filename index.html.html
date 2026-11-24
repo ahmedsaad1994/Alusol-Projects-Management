@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة إدارة مشاريع الألمنيوم والواجهات الزجاجية | PMO & Executive Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; color: #0f172a; }
+    .card { background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+    .badge { padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; }
+    .nav-btn.active { background: linear-gradient(135deg, #1e3a8a, #2563eb); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+      .card { box-shadow: none !important; border: 1px solid #cbd5e1 !important; break-inside: avoid; }
+      .tab-pane { display: none !important; }
+      .tab-pane.print-target { display: block !important; }
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row">
+
+  <!-- Sidebar -->
+  <aside class="no-print w-full lg:w-72 bg-slate-900 text-white flex flex-col shrink-0">
+    <div class="p-5 border-b border-slate-800">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-extrabold text-lg">AL</div>
+        <div>
+          <h1 class="font-extrabold text-base leading-tight">إدارة مشاريع الألمنيوم</h1>
+          <p class="text-xs text-slate-400">PMO • Executive • Owner View</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="p-3 flex-1 space-y-1.5 overflow-y-auto">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active w-full text-right px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-between transition">
+        <span>📊 لوحة القيادة والتحليلات</span>
+      </button>
+      <button onclick="switchTab('projects')" id="nav-projects" class="nav-btn w-full text-right px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+        <span>🏗️ المشاريع</span>
+        <span id="badge-proj-count" class="bg-slate-700 text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+      <button onclick="switchTab('foremen')" id="nav-foremen" class="nav-btn w-full text-right px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+        <span>👷 إدارة الفورمان وأداؤهم</span>
+      </button>
+      <button onclick="switchTab('risks')" id="nav-risks" class="nav-btn w-full text-right px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+        <span>⚠️ سجل المخاطر والنواقص</span>
+        <span id="badge-risk-count" class="bg-rose-600 text-white text-xs px-2 py-0.5 rounded-full">0</span>
+      </button>
+      <button onclick="switchTab('gm-report')" id="nav-gm-report" class="nav-btn w-full text-right px-4 py-3 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 flex items-center justify-between transition">
+        <span>📑 تقارير المدير العام</span>
+      </button>
+      <button onclick="switchTab('owner-view')" id="nav-owner-view" class="nav-btn w-full text-right px-4 py-3 rounded-xl text-sm font-bold text-amber-300 hover:bg-slate-800 flex items-center justify-between transition border border-amber-500/30">
+        <span>👑 لوحة مالك الشركة (Owner)</span>
+      </button>
+    </nav>
+
+    <div class="p-4 border-t border-slate-800 space-y-2 text-xs">
+      <button onclick="exportBackupJSON()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-semibold text-slate-200 flex items-center justify-center gap-2">
+        💾 تصدير نسخة احتياطية (JSON)
+      </button>
+      <label class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-semibold text-slate-200 flex items-center justify-center gap-2 cursor-pointer">
+        📂 استيراد نسخة احتياطية
+        <input type="file" accept=".json" onchange="importBackupJSON(event)" class="hidden" />
+      </label>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <!-- Top Header -->
+    <header class="no-print bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 id="page-title" class="text-xl font-extrabold text-slate-800">لوحة القيادة والتحليلات التنفيذية</h2>
+        <p class="text-xs text-slate-500">نظام متابعة التنفيذ بالأكواد، الجودة (QA/QC)، وحصر النواقص والتسليمات</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="today-date" class="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-2 rounded-lg border border-slate-200"></span>
+        <button onclick="resetToDefaultData()" class="text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3 py-2 rounded-lg transition">
+          🔄 استعادة البيانات الافتراضية
+        </button>
+      </div>
+    </header>
+
+    <div class="p-6 space-y-6 flex-1">
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active space-y-6">
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4" id="kpi-cards"></div>
+
+        <!-- Path to Handover (Quick Wins) -->
+        <div class="card p-5 border-r-4 border-r-emerald-500">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 class="font-extrabold text-slate-800 text-base">🎯 مسار التسليم السريع (Path to Handover ≥ 85%)</h3>
+              <p class="text-xs text-slate-500">مشاريع قريبة جداً من الإغلاق النهائي وتحصيل الدفعات — أولوية قصوى</p>
+            </div>
+          </div>
+          <div id="quick-wins-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="card p-5">
+            <h3 class="font-bold text-slate-800 mb-3 text-sm">توزيع حالات المشاريع</h3>
+            <div class="h-60"><canvas id="statusChart"></canvas></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="font-bold text-slate-800 mb-3 text-sm">إنتاجية الفورمان (إجمالي القطع المركبة)</h3>
+            <div class="h-60"><canvas id="foremanChart"></canvas></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="font-bold text-slate-800 mb-3 text-sm">توزيع العناصر حسب النوع</h3>
+            <div class="h-60"><canvas id="categoryChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Critical Alerts & Delays -->
+        <div class="card p-5">
+          <h3 class="font-extrabold text-slate-800 mb-3 text-base">🚨 المشاريع المتوقفة أو التي بها عوائق وتأخيرات</h3>
+          <div id="critical-alerts-list" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- TAB 2: PROJECTS & CODE SHEET -->
+      <section id="tab-projects" class="tab-pane space-y-5">
+        <!-- Projects List View -->
+        <div id="projects-list-view" class="space-y-4">
+          <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2 flex-1">
+              <input type="text" id="filter-search" oninput="renderProjectsTable()" placeholder="بحث برقم الملف، العميل، أو المنطقة..." class="px-3 py-2 border border-slate-300 rounded-lg text-sm w-60" />
+              <select id="filter-status" onchange="renderProjectsTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="">كل الحالات</option>
+                <option value="جاري التركيب">جاري التركيب</option>
+                <option value="تحت التصنيع">تحت التصنيع</option>
+                <option value="متوقف">متوقف</option>
+                <option value="Handover">Handover (تم التسليم)</option>
+              </select>
+              <select id="filter-foreman" onchange="renderProjectsTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="">كل الفورمان</option>
+              </select>
+              <select id="filter-delay" onchange="renderProjectsTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm">
+                <option value="">كل أسباب العوائق</option>
+                <option value="الصبغ">الصبغ</option>
+                <option value="المصممين">المصممين</option>
+                <option value="المصنع">المصنع</option>
+                <option value="اعتماد العميل">اعتماد العميل</option>
+                <option value="عدم جاهزية الموقع">عدم جاهزية الموقع</option>
+                <option value="مورد الزجاج">مورد الزجاج</option>
+              </select>
+            </div>
+            <button onclick="openProjectModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm transition">
+              + إضافة مشروع جديد
+            </button>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-right">
+                <thead class="bg-slate-800 text-white text-xs">
+                  <tr>
+                    <th class="p-3">رقم الملف</th>
+                    <th class="p-3">العميل / الموقع</th>
+                    <th class="p-3">الفورمان المسؤول</th>
+                    <th class="p-3">الحالة</th>
+                    <th class="p-3">سبب التأخير / العائق</th>
+                    <th class="p-3">التركيب الميداني</th>
+                    <th class="p-3">جودة QA/QC</th>
+                    <th class="p-3">المتبقي</th>
+                    <th class="p-3 text-center">إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="projects-tbody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Single Project Code Sheet View (Exact Foreman Report without Drawing column) -->
+        <div id="project-detail-view" class="hidden space-y-4">
+          <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <button onclick="closeProjectDetail()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-2 rounded-lg text-sm">
+                → رجوع لقائمة المشاريع
+              </button>
+              <div>
+                <h3 id="detail-title" class="font-extrabold text-lg text-slate-900"></h3>
+                <p id="detail-subtitle" class="text-xs text-slate-500"></p>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="detail-foreman-select" onchange="updateProjectForeman(this.value)" class="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-blue-50 text-blue-900"></select>
+              <select id="detail-status-select" onchange="updateProjectStatus(this.value)" class="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold">
+                <option value="تحت التصنيع">تحت التصنيع</option>
+                <option value="جاري التركيب">جاري التركيب</option>
+                <option value="متوقف">متوقف</option>
+                <option value="Handover">Handover</option>
+              </select>
+              <select id="detail-delay-select" onchange="updateProjectDelayReason(this.value)" class="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold bg-rose-50 text-rose-900">
+                <option value="">بدون عائق / تأخير</option>
+                <option value="الصبغ">عائق: الصبغ</option>
+                <option value="المصممين">عائق: المصممين</option>
+                <option value="المصنع">عائق: المصنع</option>
+                <option value="اعتماد العميل">عائق: اعتماد العميل</option>
+                <option value="عدم جاهزية الموقع">عائق: عدم جاهزية الموقع</option>
+                <option value="مورد الزجاج">عائق: مورد الزجاج</option>
+              </select>
+              <button onclick="openEditCurrentProjectModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-lg text-xs">
+                ✏️ تعديل بيانات المشروع
+              </button>
+            </div>
+          </div>
+
+          <!-- Project Specs & Dates Banner -->
+          <div id="detail-specs-banner" class="card p-4 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs bg-slate-50"></div>
+
+          <!-- Missing Glass & Shortages Box by Code -->
+          <div class="card p-4 border-r-4 border-r-rose-500 bg-rose-50/40">
+            <h4 class="font-extrabold text-rose-900 text-sm mb-2">🔍 حصر النواقص ومقاسات الزجاج الناقص/المكسور بالأكواد:</h4>
+            <div id="detail-shortages-list" class="flex flex-wrap gap-2 text-xs"></div>
+          </div>
+
+          <!-- Add New Code Item Inline Form -->
+          <div class="card p-4 bg-blue-50/40 border-blue-200">
+            <h4 class="font-bold text-slate-800 text-xs mb-2">+ إضافة كود قطعة جديد لكشف الموقع:</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
+              <input type="text" id="new-item-code" placeholder="رمز الموقع (مثال: GW6)" class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white" />
+              <select id="new-item-type" class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white">
+                <option value="شباك">شباك (Window)</option>
+                <option value="باب">باب (Door)</option>
+                <option value="سحاب">سحاب (Sliding)</option>
+                <option value="كرتن وول">كرتن وول (Curtain Wall)</option>
+                <option value="سكاي لايت">سكاي لايت (Skylight)</option>
+                <option value="فولدينج">فولدينج (Folding)</option>
+                <option value="هاندريل">هاندريل (Handrail)</option>
+                <option value="شبك / ديكور">شبك / ديكور</option>
+              </select>
+              <input type="text" id="new-item-floor" placeholder="الدور (مثال: الأرضي)" class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white" />
+              <input type="number" id="new-item-glass-total" value="1" min="0" placeholder="إجمالي الزجاج" class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white" />
+              <select id="new-item-scope" class="px-3 py-2 border border-slate-300 rounded-lg text-xs bg-white">
+                <option value="أساسي">نطاق أساسي</option>
+                <option value="إضافي">عمل إضافي (Variation)</option>
+                <option value="تعديل / تلف">تعديل / معالجة تلف</option>
+              </select>
+              <button onclick="addCodeItemToProject()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs py-2">
+                إضافة للكشف
+              </button>
+            </div>
+          </div>
+
+          <!-- Exact Foreman Sheet Table (No Drawing Column) -->
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-center border-collapse">
+                <thead>
+                  <tr class="bg-slate-900 text-white">
+                    <th rowspan="2" class="p-2 border border-slate-700">#</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">رمز الموقع</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">النوع</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">الدور</th>
+                    <th colspan="3" class="p-2 border border-slate-700 bg-blue-900">الألمنيوم</th>
+                    <th colspan="4" class="p-2 border border-slate-700 bg-teal-900">الزجاج</th>
+                    <th colspan="6" class="p-2 border border-slate-700 bg-indigo-900">مراحل الجودة والتشطيب (QA/QC)</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">تاريخ الإنجاز</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">سبب العائق / ملاحظات</th>
+                    <th rowspan="2" class="p-2 border border-slate-700">حذف</th>
+                  </tr>
+                  <tr class="bg-slate-800 text-slate-200">
+                    <th class="p-1.5 border border-slate-700">تم التركيب</th>
+                    <th class="p-1.5 border border-slate-700">بالموقع ولم يركب</th>
+                    <th class="p-1.5 border border-slate-700">لم يورد</th>
+                    <th class="p-1.5 border border-slate-700">إجمالي</th>
+                    <th class="p-1.5 border border-slate-700">ركب</th>
+                    <th class="p-1.5 border border-slate-700">لم يركب</th>
+                    <th class="p-1.5 border border-slate-700">رقم/مقاس الناقص</th>
+                    <th class="p-1.5 border border-slate-700">تيب حماية</th>
+                    <th class="p-1.5 border border-slate-700">سيلكون داخل</th>
+                    <th class="p-1.5 border border-slate-700">سيلكون خارج</th>
+                    <th class="p-1.5 border border-slate-700">فحص خدوش</th>
+                    <th class="p-1.5 border border-slate-700">اختبار مياه</th>
+                    <th class="p-1.5 border border-slate-700">تم التسليم</th>
+                  </tr>
+                </thead>
+                <tbody id="code-sheet-tbody" class="divide-y divide-slate-200"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: FOREMEN MANAGEMENT -->
+      <section id="tab-foremen" class="tab-pane space-y-5">
+        <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="text-xs font-bold text-slate-600">فلتر الفترة الزمنية للأداء:</label>
+            <input type="date" id="foreman-from" onchange="renderForemenView()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs" />
+            <span class="text-xs text-slate-400">إلى</span>
+            <input type="date" id="foreman-to" onchange="renderForemenView()" class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs" />
+          </div>
+          <button onclick="openForemanModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-sm">
+            + إضافة فورمان جديد
+          </button>
+        </div>
+
+        <div id="foremen-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+      </section>
+
+      <!-- TAB 4: RISKS & SHORTAGES REGISTER -->
+      <section id="tab-risks" class="tab-pane space-y-5">
+        <div class="card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="font-extrabold text-slate-800 text-base">سجل المخاطر والعوائق ونواقص الزجاج (PMO Risk & Snagging Log)</h3>
+            <p class="text-xs text-slate-500">حصر آلي لجميع المشاريع المتوقفة أو المتأخرة والقطع التي بها نواقص زجاج أو عوائق تنفيذ</p>
+          </div>
+          <select id="risk-source-filter" onchange="renderRisksView()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold">
+            <option value="">كل أسباب التأخير والعوائق</option>
+            <option value="الصبغ">الصبغ</option>
+            <option value="المصممين">المصممين</option>
+            <option value="المصنع">المصنع</option>
+            <option value="اعتماد العميل">اعتماد العميل</option>
+            <option value="عدم جاهزية الموقع">عدم جاهزية الموقع</option>
+            <option value="مورد الزجاج">مورد الزجاج</option>
+          </select>
+        </div>
+        <div id="risks-container" class="space-y-3"></div>
+      </section>
+
+      <!-- TAB 5: GENERAL MANAGER REPORT -->
+      <section id="tab-gm-report" class="tab-pane space-y-5">
+        <div class="no-print card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="font-bold text-sm text-slate-700">فترة التقرير:</span>
+            <input type="date" id="gm-from" onchange="renderGMReport()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs" />
+            <span class="text-xs text-slate-500">إلى</span>
+            <input type="date" id="gm-to" onchange="renderGMReport()" class="px-3 py-2 border border-slate-300 rounded-lg text-xs" />
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="printSection('tab-gm-report')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs">
+              🖨️ طباعة / حفظ PDF
+            </button>
+            <button onclick="copyGMWhatsApp()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs">
+              📲 نسخ ملخص واتساب للإدارة
+            </button>
+          </div>
+        </div>
+
+        <div id="gm-report-content" class="space-y-5"></div>
+      </section>
+
+      <!-- TAB 6: OWNER EXECUTIVE VIEW -->
+      <section id="tab-owner-view" class="tab-pane space-y-5">
+        <div class="no-print card p-4 bg-gradient-to-l from-slate-900 to-slate-800 text-white flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 class="font-extrabold text-base text-amber-300">👑 التقرير التنفيذي لمالك الشركة (Owner Executive Brief)</h3>
+            <p class="text-xs text-slate-300">متابعة التحصيل النقدي، أولويات إغلاق المشاريع، الأعمال الإضافية، وكفاءة الموارد</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="printSection('tab-owner-view')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs">
+              📄 تحميل تقرير المالك (PDF)
+            </button>
+            <button onclick="exportOwnerCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs">
+              📊 تحميل Excel / CSV
+            </button>
+            <button onclick="copyOwnerWhatsApp()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl text-xs">
+              📲 نسخ ملخص للمالك
+            </button>
+          </div>
+        </div>
+
+        <div id="owner-report-content" class="space-y-5"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- MODAL: ADD / EDIT PROJECT -->
+  <div id="project-modal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-4xl w-full p-6 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 id="project-modal-title" class="font-extrabold text-lg text-slate-800">إضافة مشروع جديد</h3>
+        <button onclick="closeProjectModal()" class="text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+      </div>
+      <input type="hidden" id="pm-id" />
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div>
+          <label class="font-bold block mb-1">رقم الملف (File #) *</label>
+          <input type="text" id="pm-file" class="w-full border border-slate-300 rounded-lg p-2" placeholder="مثال: 50105" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">اسم العميل *</label>
+          <input type="text" id="pm-customer" class="w-full border border-slate-300 rounded-lg p-2" placeholder="اسم العميل" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">رقم الهاتف</label>
+          <input type="text" id="pm-phone" class="w-full border border-slate-300 rounded-lg p-2" placeholder="رقم التواصل" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">العنوان / المنطقة</label>
+          <input type="text" id="pm-address" class="w-full border border-slate-300 rounded-lg p-2" placeholder="المنطقة - القطعة - القسيمة" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">الفورمان المسؤول</label>
+          <select id="pm-foreman" class="w-full border border-slate-300 rounded-lg p-2"></select>
+        </div>
+        <div>
+          <label class="font-bold block mb-1">حالة المشروع</label>
+          <select id="pm-status" class="w-full border border-slate-300 rounded-lg p-2">
+            <option value="تحت التصنيع">تحت التصنيع</option>
+            <option value="جاري التركيب">جاري التركيب</option>
+            <option value="متوقف">متوقف</option>
+            <option value="Handover">Handover</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold block mb-1">سبب التأخير / العائق</label>
+          <select id="pm-delay" class="w-full border border-slate-300 rounded-lg p-2">
+            <option value="">بدون عائق</option>
+            <option value="الصبغ">الصبغ</option>
+            <option value="المصممين">المصممين</option>
+            <option value="المصنع">المصنع</option>
+            <option value="اعتماد العميل">اعتماد العميل</option>
+            <option value="عدم جاهزية الموقع">عدم جاهزية الموقع</option>
+            <option value="مورد الزجاج">مورد الزجاج</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold block mb-1">لون الدهان (Paint / Finish)</label>
+          <input type="text" id="pm-paint" class="w-full border border-slate-300 rounded-lg p-2" placeholder="مثال: RAL7012 / Andromeda" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">مواصفات الزجاج (Glass Spec)</label>
+          <input type="text" id="pm-glass" class="w-full border border-slate-300 rounded-lg p-2" placeholder="مثال: 6mm Stopsol Bronze" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">تاريخ الاعتماد</label>
+          <input type="text" id="pm-approved" class="w-full border border-slate-300 rounded-lg p-2" placeholder="YYYY-MM-DD" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">تاريخ التوريد</label>
+          <input type="text" id="pm-delivery" class="w-full border border-slate-300 rounded-lg p-2" placeholder="YYYY-MM-DD" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">تاريخ التركيب / التسليم</label>
+          <input type="text" id="pm-install" class="w-full border border-slate-300 rounded-lg p-2" placeholder="YYYY-MM-DD" />
+        </div>
+      </div>
+
+      <div>
+        <label class="font-bold text-xs block mb-1">ملاحظات المشروع</label>
+        <input type="text" id="pm-notes" class="w-full border border-slate-300 rounded-lg p-2 text-xs" placeholder="ملاحظات عامة حول المشروع أو النواقص..." />
+      </div>
+
+      <!-- Quick Code Generator for New Project -->
+      <div id="pm-codes-builder" class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-xs text-slate-700">توليد سريع لأكواد القطع (اختياري):</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+          <input type="text" id="gen-prefix" placeholder="البادئة (مثال: W أو D)" class="border border-slate-300 rounded-lg p-2 bg-white" />
+          <input type="number" id="gen-from" value="1" min="1" placeholder="من رقم" class="border border-slate-300 rounded-lg p-2 bg-white" />
+          <input type="number" id="gen-to" value="5" min="1" placeholder="إلى رقم" class="border border-slate-300 rounded-lg p-2 bg-white" />
+          <select id="gen-type" class="border border-slate-300 rounded-lg p-2 bg-white">
+            <option value="شباك">شباك</option>
+            <option value="باب">باب</option>
+            <option value="سحاب">سحاب</option>
+            <option value="كرتن وول">كرتن وول</option>
+            <option value="سكاي لايت">سكاي لايت</option>
+            <option value="فولدينج">فولدينج</option>
+            <option value="هاندريل">هاندريل</option>
+          </select>
+          <button type="button" onclick="generateModalCodes()" class="bg-slate-800 text-white font-bold rounded-lg p-2">
+            توليد الأكواد
+          </button>
+        </div>
+        <div id="pm-generated-preview" class="flex flex-wrap gap-1.5 text-xs pt-1"></div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeProjectModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700">إلغاء</button>
+        <button onclick="saveProjectModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">حفظ المشروع</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT FOREMAN -->
+  <div id="foreman-modal" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-extrabold text-base text-slate-800">إضافة / تعديل فورمان</h3>
+        <button onclick="closeForemanModal()" class="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+      </div>
+      <input type="hidden" id="fm-id" />
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-bold block mb-1">اسم الفورمان *</label>
+          <input type="text" id="fm-name" class="w-full border border-slate-300 rounded-lg p-2" placeholder="الاسم الكامل" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">رقم الهاتف</label>
+          <input type="text" id="fm-phone" class="w-full border border-slate-300 rounded-lg p-2" placeholder="رقم الهاتف" />
+        </div>
+        <div>
+          <label class="font-bold block mb-1">التخصص / الفريق</label>
+          <input type="text" id="fm-specialty" class="w-full border border-slate-300 rounded-lg p-2" placeholder="مثال: واجهات كرتن وول وأبواب" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-3 border-t">
+        <button onclick="closeForemanModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100">إلغاء</button>
+        <button onclick="saveForemanModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'alu_pmo_dashboard_v5';
+    let currentProjectId = null;
+    let modalDraftItems = [];
+    let charts = {};
+
+    const DEFAULT_FOREMEN = [
+      { id: 'f1', name: 'عيدار', phone: '99001122', specialty: 'واجهات كرتن وول وشبابيك فيلات' },
+      { id: 'f2', name: 'محمد كمال', phone: '99003344', specialty: 'أبواب ديكور وسحاب وهاندريل' },
+      { id: 'f3', name: 'محمود حسن', phone: '99005566', specialty: 'تركيبات عامة وتقفيل نهائي' },
+      { id: 'f4', name: 'فريق الصيانة والورشة', phone: '99007788', specialty: 'تعديلات ومعالجة نواقص' }
+    ];
+
+    function buildItemsFromCounts(counts, installedRatio = 1, missingNote = '') {
+      const map = [
+        ['W', 'شباك', counts.w || 0],
+        ['D', 'باب', counts.d || 0],
+        ['DD', 'باب', counts.dd || 0],
+        ['SL', 'سحاب', counts.sl || 0],
+        ['CW', 'كرتن وول', counts.cw || 0],
+        ['SK', 'سكاي لايت', counts.sk || 0],
+        ['FL', 'فولدينج', counts.fl || 0],
+        ['HR', 'هاندريل', counts.hr || 0]
+      ];
+      const items = [];
+      let idx = 1;
+      map.forEach(([prefix, type, qty]) => {
+        for (let i = 1; i <= qty; i++) {
+          const totalSoFar = idx;
+          items.push({
+            id: 'it_' + Math.random().toString(36).slice(2, 9),
+            code: `${prefix}${i}`,
+            type,
+            floor: 'الموقع',
+            scope: 'أساسي',
+            aluStatus: 'installed',
+            glassTotal: 1,
+            glassInstalled: 1,
+            glassMissingSize: '',
+            tape: true,
+            siliconeIn: true,
+            siliconeOut: true,
+            scratchCheck: true,
+            waterTest: true,
+            handedOver: installedRatio === 1,
+            date: '2026-11-15',
+            delayReason: '',
+            notes: ''
+          });
+          idx++;
+        }
+      });
+      const targetInstalled = Math.round(items.length * installedRatio);
+      items.forEach((it, index) => {
+        if (index >= targetInstalled) {
+          it.aluStatus = installedRatio === 0 ? 'not_delivered' : 'on_site';
+          it.glassInstalled = 0;
+          it.tape = false;
+          it.siliconeIn = false;
+          it.siliconeOut = false;
+          it.scratchCheck = false;
+          it.waterTest = false;
+          it.handedOver = false;
+          it.date = '';
+          it.notes = missingNote;
+        }
+      });
+      return items;
+    }
+
+    // Exact 37 items from Foreman Eidar's PDF report for Yousef Ahmad Al Mulla (50010/24)
+    const EIDAR_50010_ITEMS = [
+      { code: 'BW1', type: 'شباك', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: true, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'GCW2', type: 'كرتن وول', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '63×72.5 (1)', tape: true, siliconeIn: true, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-18', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 63×72.5' },
+      { code: 'GW5', type: 'شباك', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '65×35 (1)', tape: true, siliconeIn: true, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-18', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 65×35' },
+      { code: 'GW6', type: 'شباك', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'GW85', type: 'شباك', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'GC10', type: 'كرتن وول', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'GC11', type: 'كرتن وول', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'GC12', type: 'كرتن وول', floor: 'الأرضي', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '104.5×103 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-18', delayReason: 'مورد الزجاج', notes: 'ناقص زجاج 104.5×103' },
+      { code: 'FW1', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW2', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW3', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW4', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW5', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW6', type: 'شباك', floor: 'الأول', aluStatus: 'on_site', glassTotal: 1, glassInstalled: 0, glassMissingSize: '', tape: false, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '', delayReason: 'عدم جاهزية الموقع', notes: 'بالموقع ولم يركب' },
+      { code: 'EW82', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW9', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '59×148.5 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-18', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 59×148.5' },
+      { code: 'FW10', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW11', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'FW12', type: 'شباك', floor: 'الأول', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-18', notes: '' },
+      { code: 'SW1', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW2', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW3', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW4', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW5', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW6', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW7', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW8', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW9', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW10', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '57×115 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-19', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 57×115' },
+      { code: 'SW11', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '29×191 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-19', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 29×191' },
+      { code: 'SW12', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'SW13', type: 'سحاب', floor: 'الثاني', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'RW1', type: 'شباك', floor: 'السطح', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'RW2', type: 'شباك', floor: 'السطح', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'RW3', type: 'شباك', floor: 'السطح', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '53.5×106 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-19', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 53.5×106' },
+      { code: 'RW4', type: 'شباك', floor: 'السطح', aluStatus: 'installed', glassTotal: 1, glassInstalled: 1, glassMissingSize: '', tape: true, siliconeIn: true, siliconeOut: true, scratchCheck: true, waterTest: false, handedOver: false, date: '2026-11-19', notes: '' },
+      { code: 'RW10', type: 'شباك', floor: 'السطح', aluStatus: 'installed', glassTotal: 1, glassInstalled: 0, glassMissingSize: '33×54 (1)', tape: true, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false, date: '2026-11-19', delayReason: 'مورد الزجاج', notes: 'زجاجة ناقصة 33×54' }
+    ].map((x, idx) => ({ id: 'eid_' + idx, scope: 'أساسي', delayReason: x.delayReason || '', ...x }));
+
+    const DEFAULT_PROJECTS = [
+      { id: 'p1', fileNo: '50016', customer: 'Moussad Al Khaldi', phone: '51212200', address: 'Mutlaa-N9-B.4-H.331', foremanId: 'f1', status: 'Handover', delayReason: '', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-03-03', deliveryDate: '2026-05-07', installDate: '2026-06-27', notes: 'Delivered on 22-10-2026 Handover', items: buildItemsFromCounts({ w: 44, d: 7, dd: 2, cw: 3 }, 1) },
+      { id: 'p2', fileNo: '5060', customer: 'Core Construction', phone: '22447272', address: 'Al Idayliya', foremanId: 'f2', status: 'Handover', delayReason: '', paint: 'Finish', glassSpec: 'Premium 25 8mm', approvedDate: '2026-04-15', deliveryDate: '2026-04-15', installDate: '2026-10-20', notes: 'Handover completed', items: buildItemsFromCounts({ w: 34, d: 7, dd: 1, sl: 6, cw: 3, sk: 1 }, 1) },
+      { id: 'p3', fileNo: '5071', customer: 'Sheikha Ezza', phone: '51115555', address: 'Jleaa-240-10', foremanId: 'f2', status: 'جاري التركيب', delayReason: 'المصنع', paint: 'Finish', glassSpec: '8mm Premium 25', approvedDate: '2026-03-01', deliveryDate: '2026-04-15', installDate: '2026-11-15', notes: 'Balance 1 Door', items: buildItemsFromCounts({ w: 31, d: 9, dd: 1, sl: 15, cw: 10 }, 66/67, 'Balance 1 Door') },
+      { id: 'p4', fileNo: '5032/24', customer: 'Nader Hashim Al Issa', phone: '66600625', address: 'Al Mansouria - B.2-H.63', foremanId: 'f1', status: 'متوقف', delayReason: 'المصنع', paint: 'Finish', glassSpec: '8mm Premium 25', approvedDate: '2026-01-04', deliveryDate: '2026-04-26', installDate: 'Stop', notes: 'Balance 2 Doors & 1 Window (Shortage Material), 1 Sliding with CW Cutting list', items: buildItemsFromCounts({ w: 59, d: 9, sl: 8, cw: 19 }, 90/95, 'Shortage Material / CW Cutting list') },
+      { id: 'p5', fileNo: '5021/24', customer: 'Moath Sleiman Al Wazzan', phone: '67776142', address: 'Qurtoba-B.1-S.1-H.706', foremanId: 'f2', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: '6mm Stopsol Bronze', approvedDate: '2026-02-14', deliveryDate: '2026-04-21', installDate: '2026-05-12', notes: 'Balance 2 Décor Door, 2 Pivot Door, 2 Double doors (rectification), 2 Doors in Roof', items: buildItemsFromCounts({ w: 37, d: 27, sl: 2, cw: 23 }, 81/89, 'Balance Décor/Pivot/Roof Doors & rectification') },
+      { id: 'p6', fileNo: '5079', customer: 'Bayan Selman Bour (H.268)', phone: '99441849', address: 'Masayel-B.5-S.524-H.268', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-14', deliveryDate: '2026-04-21', installDate: '2026-05-24', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 54, d: 7, dd: 1 }, 61/62, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p7', fileNo: '5080', customer: 'Bayan Selman Bour (H.270)', phone: '99441849', address: 'Masayel-B.5-S.524-H.270', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-14', deliveryDate: '2026-04-21', installDate: '2026-06-06', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 53, d: 7, dd: 1 }, 60/61, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p8', fileNo: '5081', customer: 'Bayan Selman Bour (H.264)', phone: '99441849', address: 'Masayel-B.5-S.524-H.264', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-18', deliveryDate: '2026-04-25', installDate: '2026-07-27', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 53, d: 7, dd: 1 }, 60/61, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p9', fileNo: '5082', customer: 'Bayan Selman Bour (H.266)', phone: '99441849', address: 'Masayel-B.5-S.524-H.266', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-18', deliveryDate: '2026-04-25', installDate: '2026-06-16', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 55, d: 7, dd: 1 }, 62/63, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p10', fileNo: '5083', customer: 'Bayan Selman Bour (H.273)', phone: '99441849', address: 'Masayel-B.5-S.525-H.273', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-18', deliveryDate: '2026-04-25', installDate: '2026-08-20', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 53, d: 7, dd: 1 }, 60/61, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p11', fileNo: '5084', customer: 'Bayan Selman Bour (H.271)', phone: '99441849', address: 'Masayel-B.5-S.524-H.271', foremanId: 'f3', status: 'جاري التركيب', delayReason: 'اعتماد العميل', paint: 'Finish', glassSpec: 'DS Bronze', approvedDate: '2026-02-18', deliveryDate: '2026-04-25', installDate: '2026-08-04', notes: 'Additional Glass Door', items: (() => { const arr = buildItemsFromCounts({ w: 54, d: 7, dd: 1 }, 61/62, 'Additional Glass Door'); arr[arr.length-1].scope = 'إضافي'; return arr; })() },
+      { id: 'p12', fileNo: '5090', customer: 'Abed Latif Hmoud Al Falah', phone: '99188880', address: 'Zahra - B.2 - H.710', foremanId: 'f2', status: 'جاري التركيب', delayReason: 'المصنع', paint: 'Finish', glassSpec: '6mm Stopsol Bronze', approvedDate: '2026-02-23', deliveryDate: '2026-04-30', installDate: '2026-07-05', notes: 'Balance 39 Fly screen', items: buildItemsFromCounts({ w: 39, d: 18, dd: 2 }, 59/98, 'Balance 39 Fly screen') },
+      { id: 'p13', fileNo: '5031', customer: 'Maher Al Bassam', phone: '', address: 'Surra', foremanId: 'f1', status: 'Handover', delayReason: '', paint: 'Finish', glassSpec: 'Standard', approvedDate: '', deliveryDate: '', installDate: '2026-10-21', notes: 'Start for Fixing & Handover on 21-10-2026', items: buildItemsFromCounts({ w: 73, d: 16, cw: 18 }, 1) },
+      { id: 'p14', fileNo: '5053', customer: 'Bader Al Ayoub', phone: '', address: 'Shaab', foremanId: 'f2', status: 'جاري التركيب', delayReason: 'مورد الزجاج', paint: 'Finish', glassSpec: 'Premium 25', approvedDate: '2026-04-13', deliveryDate: '2026-07-20', installDate: '2026-07-20', notes: 'Balance Doors (2), Windows (2) + Glass', items: buildItemsFromCounts({ w: 16, d: 8, sl: 11, cw: 2, sk: 2 }, 35/39, 'Balance Doors (2), Windows (2) + Glass') },
+      { id: 'p15', fileNo: '5064', customer: 'Saleh Al Rifaii', phone: '', address: 'Mutlaa', foremanId: 'f1', status: 'جاري التركيب', delayReason: 'مورد الزجاج', paint: 'Finish', glassSpec: '6mm DS Grey', approvedDate: '2026-05-18', deliveryDate: '2026-07-19', installDate: '2026-07-19', notes: 'Balance Glass & Concealed Window', items: buildItemsFromCounts({ w: 21, d: 4, dd: 2, sl: 2, cw: 20, sk: 1 }, 46/50, 'Balance Glass & Concealed Window') },
+      { id: 'p16', fileNo: '5042/24', customer: 'Ahmad Hamad Ahmad bo Abbas', phone: '', address: 'Mutlaa-N4-B.3-H.684', foremanId: 'f1', status: 'جاري التركيب', delayReason: 'عدم جاهزية الموقع', paint: 'Finish', glassSpec: 'Not approve', approvedDate: '2026-06-22', deliveryDate: '2026-08-31', installDate: '2026-11-16', notes: 'Balance Sliding sash & Glass, (2) Windows will be hold', items: buildItemsFromCounts({ w: 34, d: 15, cw: 6 }, 53/55, '(2) Windows hold & Sliding sash glass') },
+      { id: 'p17', fileNo: '5103', customer: 'Abdullah Zaman', phone: '', address: 'Jaber Al Ahmad-B.5-S.505-H.1276', foremanId: 'f3', status: 'Handover', delayReason: '', paint: 'Stainless Steel', glassSpec: 'Clear', approvedDate: '2026-06-20', deliveryDate: '', installDate: '2026-11-14', notes: 'Handover', items: buildItemsFromCounts({ w: 39, d: 1 }, 1) },
+      { id: 'p18', fileNo: '5098', customer: 'Sakr Al Bader', phone: '', address: 'Abdalli', foremanId: 'f3', status: 'Handover', delayReason: '', paint: 'RAL7012', glassSpec: 'Standard', approvedDate: '2026-06-15', deliveryDate: '', installDate: '2026-11-10', notes: 'Handover', items: buildItemsFromCounts({ w: 12, d: 2 }, 1) },
+      { id: 'p19', fileNo: '50010/24', customer: 'Yousef Ahmad Al Mulla', phone: '', address: 'Mishrif', foremanId: 'f1', status: 'جاري التركيب', delayReason: 'مورد الزجاج', paint: 'Andromeda', glassSpec: 'Stopsol Bronze', approvedDate: '2026-06-28', deliveryDate: '2026-09-20', installDate: '2026-11-19', notes: 'تقرير الفورمان عيدار: نواقص زجاج بالمقاسات + شباك FW6 بالموقع ولم يركب', items: EIDAR_50010_ITEMS },
+      { id: 'p20', fileNo: '5093', customer: 'Daoud Al Wikiyan', phone: '', address: 'Surra', foremanId: 'f1', status: 'تحت التصنيع', delayReason: 'المصنع', paint: 'RAL7022 SHR', glassSpec: 'Not approve', approvedDate: '2026-08-20', deliveryDate: '2026-10-20', installDate: '', notes: 'Under Fabrication', items: buildItemsFromCounts({ w: 84, d: 12, dd: 2 }, 0, 'Under Fabrication') },
+      { id: 'p21', fileNo: '5101', customer: 'Mohamad Abed Latif Falah', phone: '', address: 'Salwa', foremanId: 'f2', status: 'جاري التركيب', delayReason: 'المصنع', paint: 'RAL7022 SHR', glassSpec: 'DS Grey', approvedDate: '2026-08-20', deliveryDate: '2026-10-20', installDate: '2026-11-15', notes: 'Balance 1 Door & 1 Window', items: buildItemsFromCounts({ w: 31, d: 1, dd: 1 }, 31/33, 'Balance 1 Door & 1 Window') },
+      { id: 'p22', fileNo: '5020', customer: 'Sheikh Mohamad', phone: '', address: 'Bayan', foremanId: 'f1', status: 'جاري التركيب', delayReason: 'مورد الزجاج', paint: '26-08-24', glassSpec: 'DS Steel Grey', approvedDate: '', deliveryDate: '', installDate: '2026-11-18', notes: 'Installation Balance & Glass', items: buildItemsFromCounts({ d: 5, sl: 1, cw: 1 }, 5/7, 'Installation Balance & Glass') },
+      { id: 'p23', fileNo: '5052', customer: 'Hamad Al Falah', phone: '', address: 'Zahra', foremanId: 'f3', status: 'Handover', delayReason: '', paint: 'Finish', glassSpec: 'Clear', approvedDate: '', deliveryDate: '', installDate: '2026-11-12', notes: 'Toilet Partition & Glass Handrail', items: buildItemsFromCounts({ d: 7, hr: 1 }, 1) },
+      { id: 'p24', fileNo: 'AL-RAI', customer: 'AL Rai - Showroom', phone: '', address: 'Al Rai', foremanId: 'f4', status: 'متوقف', delayReason: 'المصنع', paint: 'Finish', glassSpec: 'Standard', approvedDate: '', deliveryDate: '', installDate: '', notes: 'We return 1 window Cor 70 (Damage)', items: (() => { const arr = buildItemsFromCounts({ w: 5, d: 2 }, 6/7, 'Return 1 window Cor 70 (Damage)'); arr[arr.length-1].scope = 'تعديل / تلف'; return arr; })() },
+      { id: 'p25', fileNo: '5074', customer: 'Sheikh Walid al Subah', phone: '', address: 'Al Rawda', foremanId: 'f2', status: 'Handover', delayReason: '', paint: 'Finish', glassSpec: 'Standard', approvedDate: '', deliveryDate: '', installDate: '2026-11-10', notes: 'Start for Fixing & Handover on 10/11/2026', items: buildItemsFromCounts({ w: 1, d: 1, cw: 1 }, 1) },
+      { id: 'p26', fileNo: '5096', customer: 'Shihhab Al Attar - Eng. Joseph', phone: '', address: 'Fnatis', foremanId: 'f1', status: 'تحت التصنيع', delayReason: 'المصنع', paint: 'Dorado', glassSpec: 'Not approve', approvedDate: '2026-08-20', deliveryDate: '2026-11-11', installDate: '', notes: 'Under Fabrication', items: buildItemsFromCounts({ w: 34, d: 7, sl: 2, cw: 5, sk: 2 }, 0, 'Under Fabrication') },
+      { id: 'p27', fileNo: '5076', customer: 'Ahmad Mado', phone: '', address: 'Shuweikh Sakaniya', foremanId: 'f1', status: 'تحت التصنيع', delayReason: 'المصممين', paint: 'Andromeda', glassSpec: 'Not approve', approvedDate: '2026-10-13', deliveryDate: '2027-01-12', installDate: '', notes: 'Cutting list not ready', items: buildItemsFromCounts({ w: 19, d: 23, sl: 3, cw: 30 }, 0, 'Cutting list not ready') },
+      { id: 'p28', fileNo: '5072', customer: 'Mohamad Al Oseimi', phone: '99861615', address: 'Idailiya-B.1-S.11-H.16', foremanId: 'f2', status: 'تحت التصنيع', delayReason: 'الصبغ', paint: 'AQUILA', glassSpec: 'Not approve', approvedDate: '2026-10-13', deliveryDate: '', installDate: '', notes: 'Under Paint', items: buildItemsFromCounts({ w: 7, d: 11 }, 0, 'Under Paint') }
+    ];
+
+    let state = { foremen: [], projects: [] };
+
+    function sanitizeAndHydrateForemen(raw) {
+      if (!Array.isArray(raw) || raw.length === 0) return JSON.parse(JSON.stringify(DEFAULT_FOREMEN));
+      return raw.map((f, idx) => ({
+        id: f.id || 'f_' + idx,
+        name: f.name || 'فورمان ' + (idx + 1),
+        phone: f.phone || '',
+        specialty: f.specialty || 'تركيبات عامة'
+      }));
+    }
+
+    function sanitizeAndHydrateProjects(raw) {
+      if (!Array.isArray(raw) || raw.length === 0) return JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+      return raw.map((p, idx) => ({
+        id: p.id || 'p_' + idx,
+        fileNo: p.fileNo || 'N/A',
+        customer: p.customer || 'مشروع بدون اسم',
+        phone: p.phone || '',
+        address: p.address || '',
+        foremanId: p.foremanId || 'f1',
+        status: p.status || 'جاري التركيب',
+        delayReason: p.delayReason || '',
+        paint: p.paint || '',
+        glassSpec: p.glassSpec || '',
+        approvedDate: p.approvedDate || '',
+        deliveryDate: p.deliveryDate || '',
+        installDate: p.installDate || '',
+        notes: p.notes || '',
+        items: Array.isArray(p.items) ? p.items.map((it, i) => ({
+          id: it.id || 'it_' + idx + '_' + i,
+          code: it.code || 'ITEM-' + (i + 1),
+          type: it.type || 'شباك',
+          floor: it.floor || 'الموقع',
+          scope: it.scope || 'أساسي',
+          aluStatus: it.aluStatus || 'not_delivered',
+          glassTotal: Number(it.glassTotal) || 1,
+          glassInstalled: Number(it.glassInstalled) || 0,
+          glassMissingSize: it.glassMissingSize || '',
+          tape: Boolean(it.tape),
+          siliconeIn: Boolean(it.siliconeIn),
+          siliconeOut: Boolean(it.siliconeOut),
+          scratchCheck: Boolean(it.scratchCheck),
+          waterTest: Boolean(it.waterTest),
+          handedOver: Boolean(it.handedOver),
+          date: it.date || '',
+          delayReason: it.delayReason || '',
+          notes: it.notes || ''
+        })) : []
+      }));
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          state.foremen = sanitizeAndHydrateForemen(parsed.foremen);
+          state.projects = sanitizeAndHydrateProjects(parsed.projects);
+        } else {
+          state.foremen = JSON.parse(JSON.stringify(DEFAULT_FOREMEN));
+          state.projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+          saveState();
+        }
+      } catch (e) {
+        state.foremen = JSON.parse(JSON.stringify(DEFAULT_FOREMEN));
+        state.projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateSidebarBadges();
+    }
+
+    function resetToDefaultData() {
+      if (!confirm('هل تريد استعادة جميع البيانات الافتراضية للمشاريع والفورمان وتقرير عيدار؟')) return;
+      state.foremen = JSON.parse(JSON.stringify(DEFAULT_FOREMEN));
+      state.projects = JSON.parse(JSON.stringify(DEFAULT_PROJECTS));
+      saveState();
+      refreshAll();
+    }
+
+    function computeProjectMetrics(p) {
+      const items = p.items || [];
+      const total = items.length;
+      if (total === 0) return { total: 0, installedCount: 0, fieldPct: p.status === 'Handover' ? 100 : 0, qaPct: p.status === 'Handover' ? 100 : 0, remaining: 0, shortages: [] };
+
+      let installedCount = 0;
+      let qaScoreSum = 0;
+      const shortages = [];
+
+      items.forEach(it => {
+        if (it.aluStatus === 'installed') installedCount++;
+        // QA Weighted Score: Alu 35%, Glass 25%, Silicone In/Out 15%, Tape+Scratch 10%, Water+Handover 15%
+        let s = 0;
+        if (it.aluStatus === 'installed') s += 35;
+        else if (it.aluStatus === 'on_site') s += 10;
+        if (it.glassInstalled >= it.glassTotal && it.glassTotal > 0) s += 25;
+        if (it.siliconeIn) s += 7.5;
+        if (it.siliconeOut) s += 7.5;
+        if (it.tape) s += 5;
+        if (it.scratchCheck) s += 5;
+        if (it.waterTest) s += 7.5;
+        if (it.handedOver || p.status === 'Handover') s += 7.5;
+        qaScoreSum += s;
+
+        if (it.aluStatus !== 'installed' || it.glassInstalled < it.glassTotal || it.glassMissingSize) {
+          shortages.push(it);
+        }
+      });
+
+      const fieldPct = p.status === 'Handover' ? 100 : Math.round((installedCount / total) * 100);
+      const qaPct = p.status === 'Handover' ? 100 : Math.round(qaScoreSum / total);
+      const remaining = total - installedCount;
+      return { total, installedCount, fieldPct, qaPct, remaining, shortages };
+    }
+
+    function getForemanName(id) {
+      const f = state.foremen.find(x => x.id === id);
+      return f ? f.name : 'غير محدد';
+    }
+
+    function statusBadge(status) {
+      const map = {
+        'Handover': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+        'جاري التركيب': 'bg-blue-100 text-blue-800 border border-blue-200',
+        'تحت التصنيع': 'bg-amber-100 text-amber-800 border border-amber-200',
+        'متوقف': 'bg-rose-100 text-rose-800 border border-rose-200'
+      };
+      return `<span class="badge ${map[status] || 'bg-slate-100 text-slate-700'}">${status}</span>`;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => {
+        el.classList.remove('active');
+        el.classList.add('text-slate-300');
+      });
+      document.getElementById('tab-' + tab).classList.add('active');
+      const btn = document.getElementById('nav-' + tab);
+      if (btn) {
+        btn.classList.add('active');
+        btn.classList.remove('text-slate-300');
+      }
+      const titles = {
+        'dashboard': 'لوحة القيادة والتحليلات التنفيذية',
+        'projects': 'المشاريع وكشوف الفورمان بالأكواد',
+        'foremen': 'إدارة الفورمان ومعدلات الإنتاجية',
+        'risks': 'سجل المخاطر والعوائق ونواقص الزجاج',
+        'gm-report': 'تقارير المدير العام والإدارة العليا',
+        'owner-view': 'لوحة مالك الشركة (Owner Executive View)'
+      };
+      document.getElementById('page-title').textContent = titles[tab] || '';
+      if (tab === 'projects') closeProjectDetail();
+      refreshAll();
+    }
+
+    function updateSidebarBadges() {
+      document.getElementById('badge-proj-count').textContent = state.projects.length;
+      const risksCount = state.projects.filter(p => p.status === 'متوقف' || p.delayReason || computeProjectMetrics(p).shortages.length > 0).length;
+      document.getElementById('badge-risk-count').textContent = risksCount;
+    }
+
+    function renderDashboard() {
+      const totalProj = state.projects.length;
+      const handoverCount = state.projects.filter(p => p.status === 'Handover').length;
+      const activeCount = state.projects.filter(p => p.status === 'جاري التركيب').length;
+      const stoppedCount = state.projects.filter(p => p.status === 'متوقف').length;
+
+      let totalItems = 0, totalInstalled = 0, qaSum = 0;
+      state.projects.forEach(p => {
+        const m = computeProjectMetrics(p);
+        totalItems += m.total;
+        totalInstalled += m.installedCount;
+        qaSum += m.qaPct;
+      });
+      const avgQA = totalProj ? Math.round(qaSum / totalProj) : 0;
+
+      document.getElementById('kpi-cards').innerHTML = `
+        <div class="card p-4 border-r-4 border-r-blue-600">
+          <div class="text-xs text-slate-500 font-bold">إجمالي المشاريع النشطة والمسلمة</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1">${totalProj} <span class="text-xs font-normal text-slate-500">مشروع</span></div>
+          <div class="text-xs text-blue-600 font-semibold mt-1">${activeCount} جاري التركيب • ${handoverCount} Handover</div>
+        </div>
+        <div class="card p-4 border-r-4 border-r-emerald-600">
+          <div class="text-xs text-slate-500 font-bold">إجمالي القطع المركبة بالمواقع</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1">${totalInstalled} <span class="text-xs font-normal text-slate-500">/ ${totalItems} قطعة</span></div>
+          <div class="text-xs text-emerald-600 font-semibold mt-1">نسبة التركيب الميداني: ${totalItems ? Math.round((totalInstalled/totalItems)*100) : 0}%</div>
+        </div>
+        <div class="card p-4 border-r-4 border-r-indigo-600">
+          <div class="text-xs text-slate-500 font-bold">متوسط الجودة والتشطيب (QA/QC)</div>
+          <div class="text-2xl font-extrabold text-slate-900 mt-1">${avgQA}%</div>
+          <div class="text-xs text-indigo-600 font-semibold mt-1">يشمل الزجاج، السيلكون، واختبار المياه</div>
+        </div>
+        <div class="card p-4 border-r-4 border-r-rose-600">
+          <div class="text-xs text-slate-500 font-bold">مشاريع متوقفة أو بها عوائق</div>
+          <div class="text-2xl font-extrabold text-rose-600 mt-1">${stoppedCount} <span class="text-xs font-normal text-slate-500">متوقف</span></div>
+          <div class="text-xs text-slate-600 font-semibold mt-1">${state.projects.filter(p => p.delayReason).length} مشروع مسجل له سبب عائق</div>
+        </div>
+      `;
+
+      // Quick wins (>=85% and not Handover)
+      const quickWins = state.projects.filter(p => {
+        const m = computeProjectMetrics(p);
+        return p.status !== 'Handover' && m.fieldPct >= 85;
+      });
+      document.getElementById('quick-wins-list').innerHTML = quickWins.length ? quickWins.map(p => {
+        const m = computeProjectMetrics(p);
+        return `
+          <div onclick="openProjectDetail('${p.id}')" class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 cursor-pointer transition">
+            <div class="flex items-center justify-between">
+              <span class="font-extrabold text-xs text-slate-900">#${p.fileNo} - ${p.customer}</span>
+              <span class="badge bg-emerald-600 text-white">${m.fieldPct}%</span>
+            </div>
+            <div class="text-xs text-slate-600 mt-1">المتبقي للإغلاق: <strong>${m.remaining} قطعة</strong> • الفورمان: ${getForemanName(p.foremanId)}</div>
+            ${p.delayReason ? `<div class="text-[11px] text-rose-700 font-bold mt-1">العائق: ${p.delayReason}</div>` : ''}
+          </div>
+        `;
+      }).join('') : '<p class="text-xs text-slate-500">لا توجد مشاريع معلقة فوق 85% حالياً.</p>';
+
+      renderCharts();
+      renderCriticalAlerts();
+    }
+
+    function renderCharts() {
+      // 1. Status Chart
+      const statuses = ['Handover', 'جاري التركيب', 'تحت التصنيع', 'متوقف'];
+      const statusCounts = statuses.map(s => state.projects.filter(p => p.status === s).length);
+      if (charts.status) charts.status.destroy();
+      charts.status = new Chart(document.getElementById('statusChart'), {
+        type: 'doughnut',
+        data: {
+          labels: statuses,
+          datasets: [{ data: statusCounts, backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo' } } } } }
+      });
+
+      // 2. Foreman Chart
+      const fNames = state.foremen.map(f => f.name);
+      const fCounts = state.foremen.map(f => {
+        let c = 0;
+        state.projects.filter(p => p.foremanId === f.id).forEach(p => { c += computeProjectMetrics(p).installedCount; });
+        return c;
+      });
+      if (charts.foreman) charts.foreman.destroy();
+      charts.foreman = new Chart(document.getElementById('foremanChart'), {
+        type: 'bar',
+        data: {
+          labels: fNames,
+          datasets: [{ label: 'القطع المركبة', data: fCounts, backgroundColor: '#2563eb', borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+
+      // 3. Category Chart
+      renderCategoryChart();
+    }
+
+    function renderCategoryChart() {
+      const catCounts = {};
+      state.projects.forEach(p => {
+        (p.items || []).forEach(it => {
+          catCounts[it.type] = (catCounts[it.type] || 0) + 1;
+        });
+      });
+      const labels = Object.keys(catCounts);
+      const data = Object.values(catCounts);
+      if (charts.category) charts.category.destroy();
+      charts.category = new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: 'إجمالي القطع', data, backgroundColor: '#0d9488', borderRadius: 6 }]
+        },
+        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+
+    function renderCriticalAlerts() {
+      const critical = state.projects.filter(p => p.status === 'متوقف' || p.delayReason);
+      document.getElementById('critical-alerts-list').innerHTML = critical.map(p => `
+        <div onclick="openProjectDetail('${p.id}')" class="p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div>
+            <span class="font-extrabold text-slate-900">#${p.fileNo} — ${p.customer}</span>
+            <span class="text-slate-500 mr-2">(${p.address})</span>
+            <div class="text-slate-600 mt-0.5">${p.notes || 'لا توجد ملاحظات إضافية'}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            ${p.delayReason ? `<span class="badge bg-rose-100 text-rose-800">السبب: ${p.delayReason}</span>` : ''}
+            ${statusBadge(p.status)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // PROJECTS TABLE & FILTER
+    function populateForemanDropdowns() {
+      const filterSel = document.getElementById('filter-foreman');
+      const currentVal = filterSel.value;
+      filterSel.innerHTML = '<option value="">كل الفورمان</option>' + state.foremen.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+      filterSel.value = currentVal;
+
+      const pmSel = document.getElementById('pm-foreman');
+      pmSel.innerHTML = state.foremen.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+    }
+
+    function renderProjectsTable() {
+      const q = (document.getElementById('filter-search').value || '').toLowerCase();
+      const st = document.getElementById('filter-status').value;
+      const fm = document.getElementById('filter-foreman').value;
+      const dl = document.getElementById('filter-delay').value;
+
+      const filtered = state.projects.filter(p => {
+        const matchQ = !q || p.fileNo.toLowerCase().includes(q) || p.customer.toLowerCase().includes(q) || p.address.toLowerCase().includes(q);
+        const matchSt = !st || p.status === st;
+        const matchFm = !fm || p.foremanId === fm;
+        const matchDl = !dl || p.delayReason === dl;
+        return matchQ && matchSt && matchFm && matchDl;
+      });
+
+      document.getElementById('projects-tbody').innerHTML = filtered.map(p => {
+        const m = computeProjectMetrics(p);
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="p-3 font-extrabold text-blue-700">${p.fileNo}</td>
+            <td class="p-3">
+              <div class="font-bold text-slate-900">${p.customer}</div>
+              <div class="text-xs text-slate-500">${p.address}</div>
+            </td>
+            <td class="p-3 font-semibold text-slate-700">${getForemanName(p.foremanId)}</td>
+            <td class="p-3">${statusBadge(p.status)}</td>
+            <td class="p-3">${p.delayReason ? `<span class="badge bg-rose-50 text-rose-700 border border-rose-200">${p.delayReason}</span>` : '<span class="text-slate-400 text-xs">—</span>'}</td>
+            <td class="p-3">
+              <div class="flex items-center gap-2">
+                <div class="w-16 bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div class="bg-blue-600 h-2" style="width:${m.fieldPct}%"></div>
+                </div>
+                <span class="font-bold text-xs">${m.fieldPct}%</span>
+              </div>
+            </td>
+            <td class="p-3 font-bold text-indigo-700 text-xs">${m.qaPct}%</td>
+            <td class="p-3 font-bold text-xs ${m.remaining > 0 ? 'text-rose-600' : 'text-emerald-600'}">${m.remaining} / ${m.total}</td>
+            <td class="p-3 text-center">
+              <button onclick="openProjectDetail('${p.id}')" class="bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                📋 كشف الأكواد
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // SINGLE PROJECT CODE SHEET
+    function openProjectDetail(id) {
+      currentProjectId = id;
+      switchTab('projects');
+      document.getElementById('projects-list-view').classList.add('hidden');
+      document.getElementById('project-detail-view').classList.remove('hidden');
+      renderProjectDetail();
+    }
+
+    function closeProjectDetail() {
+      currentProjectId = null;
+      document.getElementById('project-detail-view').classList.add('hidden');
+      document.getElementById('projects-list-view').classList.remove('hidden');
+      renderProjectsTable();
+    }
+
+    function renderProjectDetail() {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      if (!p) return;
+      const m = computeProjectMetrics(p);
+
+      document.getElementById('detail-title').textContent = `#${p.fileNo} — ${p.customer}`;
+      document.getElementById('detail-subtitle').textContent = `${p.address} ${p.phone ? '• هاتف: ' + p.phone : ''} • الإنجاز الميداني: ${m.fieldPct}% | الجودة QA: ${m.qaPct}%`;
+
+      const fSel = document.getElementById('detail-foreman-select');
+      fSel.innerHTML = state.foremen.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+      fSel.value = p.foremanId;
+
+      document.getElementById('detail-status-select').value = p.status;
+      document.getElementById('detail-delay-select').value = p.delayReason || '';
+
+      document.getElementById('detail-specs-banner').innerHTML = `
+        <div><span class="text-slate-400 block">لون الدهان:</span><strong>${p.paint || '—'}</strong></div>
+        <div><span class="text-slate-400 block">مواصفات الزجاج:</span><strong>${p.glassSpec || '—'}</strong></div>
+        <div><span class="text-slate-400 block">تاريخ الاعتماد:</span><strong>${p.approvedDate || '—'}</strong></div>
+        <div><span class="text-slate-400 block">تاريخ التوريد:</span><strong>${p.deliveryDate || '—'}</strong></div>
+        <div><span class="text-slate-400 block">التركيب / التسليم:</span><strong>${p.installDate || '—'}</strong></div>
+        <div><span class="text-slate-400 block">ملاحظات:</span><strong class="text-blue-800">${p.notes || '—'}</strong></div>
+      `;
+
+      // Shortages list by exact code
+      const shortagesEl = document.getElementById('detail-shortages-list');
+      if (m.shortages.length === 0) {
+        shortagesEl.innerHTML = '<span class="text-emerald-700 font-bold">✅ جميع الأكواد مركبة ومكتملة الزجاج بالكامل!</span>';
+      } else {
+        shortagesEl.innerHTML = m.shortages.map(it => {
+          let issue = [];
+          if (it.aluStatus === 'not_delivered') issue.push('ألمنيوم لم يورد');
+          if (it.aluStatus === 'on_site') issue.push('بالموقع ولم يركب');
+          if (it.glassMissingSize) issue.push('زجاج ناقص: ' + it.glassMissingSize);
+          else if (it.glassInstalled < it.glassTotal) issue.push('زجاج لم يركب');
+          if (it.delayReason) issue.push('السبب: ' + it.delayReason);
+          return `<span class="bg-white border border-rose-300 text-rose-900 px-2.5 py-1 rounded-lg font-bold shadow-xs">[${it.code} - ${it.type}] ← ${issue.join(' | ')}</span>`;
+        }).join('');
+      }
+
+      // Render Code Sheet Rows
+      const types = ['شباك', 'باب', 'سحاب', 'كرتن وول', 'سكاي لايت', 'فولدينج', 'هاندريل', 'شبك / ديكور'];
+      const delayOpts = ['', 'الصبغ', 'المصممين', 'المصنع', 'اعتماد العميل', 'عدم جاهزية الموقع', 'مورد الزجاج'];
+
+      document.getElementById('code-sheet-tbody').innerHTML = (p.items || []).map((it, idx) => `
+        <tr class="${it.aluStatus === 'installed' && it.glassInstalled >= it.glassTotal ? 'bg-emerald-50/30' : 'bg-white'} hover:bg-slate-50">
+          <td class="p-1.5 border border-slate-200 font-bold text-slate-500">${idx + 1}</td>
+          <td class="p-1.5 border border-slate-200 font-extrabold text-blue-800">
+            <input type="text" value="${it.code}" onchange="updateItemField('${it.id}', 'code', this.value)" class="w-16 text-center font-bold bg-transparent border-b border-transparent focus:border-blue-500 outline-none" />
+          </td>
+          <td class="p-1.5 border border-slate-200">
+            <select onchange="updateItemField('${it.id}', 'type', this.value)" class="bg-transparent font-semibold text-slate-800 outline-none">
+              ${types.map(t => `<option value="${t}" ${it.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+          </td>
+          <td class="p-1.5 border border-slate-200">
+            <input type="text" value="${it.floor || ''}" onchange="updateItemField('${it.id}', 'floor', this.value)" class="w-16 text-center bg-transparent outline-none" />
+          </td>
+          <!-- Aluminum 3 checkboxes -->
+          <td class="p-1.5 border border-slate-200 bg-blue-50/30">
+            <input type="checkbox" ${it.aluStatus === 'installed' ? 'checked' : ''} onchange="setAluStatus('${it.id}', 'installed')" class="w-4 h-4 accent-emerald-600 cursor-pointer" />
+          </td>
+          <td class="p-1.5 border border-slate-200 bg-blue-50/30">
+            <input type="checkbox" ${it.aluStatus === 'on_site' ? 'checked' : ''} onchange="setAluStatus('${it.id}', 'on_site')" class="w-4 h-4 accent-amber-500 cursor-pointer" />
+          </td>
+          <td class="p-1.5 border border-slate-200 bg-blue-50/30">
+            <input type="checkbox" ${it.aluStatus === 'not_delivered' ? 'checked' : ''} onchange="setAluStatus('${it.id}', 'not_delivered')" class="w-4 h-4 accent-rose-600 cursor-pointer" />
+          </td>
+          <!-- Glass 4 columns -->
+          <td class="p-1.5 border border-slate-200 bg-teal-50/30">
+            <input type="number" min="0" value="${it.glassTotal}" onchange="updateItemField('${it.id}', 'glassTotal', Number(this.value))" class="w-10 text-center bg-white border border-slate-200 rounded" />
+          </td>
+          <td class="p-1.5 border border-slate-200 bg-teal-50/30">
+            <input type="number" min="0" value="${it.glassInstalled}" onchange="updateItemField('${it.id}', 'glassInstalled', Number(this.value))" class="w-10 text-center bg-white border border-slate-200 rounded" />
+          </td>
+          <td class="p-1.5 border border-slate-200 bg-teal-50/30 font-bold ${Math.max(0, it.glassTotal - it.glassInstalled) > 0 ? 'text-rose-600' : 'text-slate-400'}">
+            ${Math.max(0, it.glassTotal - it.glassInstalled)}
+          </td>
+          <td class="p-1.5 border border-slate-200 bg-teal-50/30">
+            <input type="text" value="${it.glassMissingSize || ''}" placeholder="مقاس الناقص" onchange="updateItemField('${it.id}', 'glassMissingSize', this.value)" class="w-24 text-center bg-white border border-slate-200 rounded px-1 text-rose-700 font-bold" />
+          </td>
+          <!-- QA/QC 6 checkboxes -->
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.tape ? 'checked' : ''} onchange="updateItemField('${it.id}', 'tape', this.checked)" class="w-4 h-4 accent-indigo-600" /></td>
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.siliconeIn ? 'checked' : ''} onchange="updateItemField('${it.id}', 'siliconeIn', this.checked)" class="w-4 h-4 accent-indigo-600" /></td>
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.siliconeOut ? 'checked' : ''} onchange="updateItemField('${it.id}', 'siliconeOut', this.checked)" class="w-4 h-4 accent-indigo-600" /></td>
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.scratchCheck ? 'checked' : ''} onchange="updateItemField('${it.id}', 'scratchCheck', this.checked)" class="w-4 h-4 accent-indigo-600" /></td>
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.waterTest ? 'checked' : ''} onchange="updateItemField('${it.id}', 'waterTest', this.checked)" class="w-4 h-4 accent-indigo-600" /></td>
+          <td class="p-1.5 border border-slate-200"><input type="checkbox" ${it.handedOver ? 'checked' : ''} onchange="updateItemField('${it.id}', 'handedOver', this.checked)" class="w-4 h-4 accent-emerald-600" /></td>
+          <td class="p-1.5 border border-slate-200">
+            <input type="date" value="${it.date || ''}" onchange="updateItemField('${it.id}', 'date', this.value)" class="bg-transparent text-[11px]" />
+          </td>
+          <td class="p-1.5 border border-slate-200 text-right">
+            <div class="flex items-center gap-1">
+              <select onchange="updateItemField('${it.id}', 'delayReason', this.value)" class="border border-slate-200 rounded px-1 py-0.5 text-[11px] bg-slate-50">
+                ${delayOpts.map(d => `<option value="${d}" ${it.delayReason === d ? 'selected' : ''}>${d || '—'}</option>`).join('')}
+              </select>
+              <input type="text" value="${it.notes || ''}" placeholder="ملاحظة..." onchange="updateItemField('${it.id}', 'notes', this.value)" class="w-28 border border-slate-200 rounded px-1 py-0.5 text-[11px]" />
+            </div>
+          </td>
+          <td class="p-1.5 border border-slate-200">
+            <button onclick="deleteCodeItem('${it.id}')" class="text-rose-500 hover:text-rose-700 font-bold">✕</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function setAluStatus(itemId, status) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      const it = p.items.find(x => x.id === itemId);
+      it.aluStatus = status;
+      if (status === 'installed' && !it.date) {
+        it.date = new Date().toISOString().slice(0, 10);
+      }
+      saveState();
+      renderProjectDetail();
+    }
+
+    function updateItemField(itemId, field, value) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      const it = p.items.find(x => x.id === itemId);
+      it[field] = value;
+      saveState();
+      renderProjectDetail();
+    }
+
+    function addCodeItemToProject() {
+      const code = document.getElementById('new-item-code').value.trim();
+      if (!code) return alert('يرجى إدخال رمز الموقع (الكود)');
+      const p = state.projects.find(x => x.id === currentProjectId);
+      p.items.push({
+        id: 'it_' + Date.now(),
+        code,
+        type: document.getElementById('new-item-type').value,
+        floor: document.getElementById('new-item-floor').value || 'الموقع',
+        scope: document.getElementById('new-item-scope').value,
+        aluStatus: 'not_delivered',
+        glassTotal: Number(document.getElementById('new-item-glass-total').value) || 1,
+        glassInstalled: 0,
+        glassMissingSize: '',
+        tape: false, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false,
+        date: '', delayReason: '', notes: ''
+      });
+      document.getElementById('new-item-code').value = '';
+      saveState();
+      renderProjectDetail();
+    }
+
+    function deleteCodeItem(itemId) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      p.items = p.items.filter(x => x.id !== itemId);
+      saveState();
+      renderProjectDetail();
+    }
+
+    function updateProjectForeman(fId) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      p.foremanId = fId;
+      saveState();
+      renderProjectDetail();
+    }
+
+    function updateProjectStatus(st) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      p.status = st;
+      saveState();
+      renderProjectDetail();
+    }
+
+    function updateProjectDelayReason(dl) {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      p.delayReason = dl;
+      saveState();
+      renderProjectDetail();
+    }
+
+    // PROJECT MODAL
+    function openProjectModal(editProj = null) {
+      populateForemanDropdowns();
+      modalDraftItems = [];
+      document.getElementById('pm-generated-preview').innerHTML = '';
+      if (editProj) {
+        document.getElementById('project-modal-title').textContent = 'تعديل بيانات المشروع #' + editProj.fileNo;
+        document.getElementById('pm-id').value = editProj.id;
+        document.getElementById('pm-file').value = editProj.fileNo;
+        document.getElementById('pm-customer').value = editProj.customer;
+        document.getElementById('pm-phone').value = editProj.phone || '';
+        document.getElementById('pm-address').value = editProj.address || '';
+        document.getElementById('pm-foreman').value = editProj.foremanId;
+        document.getElementById('pm-status').value = editProj.status;
+        document.getElementById('pm-delay').value = editProj.delayReason || '';
+        document.getElementById('pm-paint').value = editProj.paint || '';
+        document.getElementById('pm-glass').value = editProj.glassSpec || '';
+        document.getElementById('pm-approved').value = editProj.approvedDate || '';
+        document.getElementById('pm-delivery').value = editProj.deliveryDate || '';
+        document.getElementById('pm-install').value = editProj.installDate || '';
+        document.getElementById('pm-notes').value = editProj.notes || '';
+        document.getElementById('pm-codes-builder').classList.add('hidden');
+      } else {
+        document.getElementById('project-modal-title').textContent = 'إضافة مشروع جديد بالأكواد';
+        document.getElementById('pm-id').value = '';
+        ['pm-file', 'pm-customer', 'pm-phone', 'pm-address', 'pm-paint', 'pm-glass', 'pm-approved', 'pm-delivery', 'pm-install', 'pm-notes'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('pm-status').value = 'تحت التصنيع';
+        document.getElementById('pm-delay').value = '';
+        document.getElementById('pm-codes-builder').classList.remove('hidden');
+      }
+      document.getElementById('project-modal').classList.remove('hidden');
+      document.getElementById('project-modal').classList.add('flex');
+    }
+
+    function openEditCurrentProjectModal() {
+      const p = state.projects.find(x => x.id === currentProjectId);
+      if (p) openProjectModal(p);
+    }
+
+    function closeProjectModal() {
+      document.getElementById('project-modal').classList.add('hidden');
+      document.getElementById('project-modal').classList.remove('flex');
+    }
+
+    function generateModalCodes() {
+      const prefix = document.getElementById('gen-prefix').value.trim() || 'W';
+      const from = Number(document.getElementById('gen-from').value) || 1;
+      const to = Number(document.getElementById('gen-to').value) || 1;
+      const type = document.getElementById('gen-type').value;
+      for (let i = from; i <= to; i++) {
+        modalDraftItems.push({
+          id: 'it_' + Date.now() + '_' + i,
+          code: prefix + i,
+          type,
+          floor: 'الموقع',
+          scope: 'أساسي',
+          aluStatus: 'not_delivered',
+          glassTotal: 1,
+          glassInstalled: 0,
+          glassMissingSize: '',
+          tape: false, siliconeIn: false, siliconeOut: false, scratchCheck: false, waterTest: false, handedOver: false,
+          date: '', delayReason: '', notes: ''
+        });
+      }
+      document.getElementById('pm-generated-preview').innerHTML = modalDraftItems.map(it =>
+        `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">${it.code} (${it.type})</span>`
+      ).join('');
+    }
+
+    function saveProjectModal() {
+      const id = document.getElementById('pm-id').value;
+      const fileNo = document.getElementById('pm-file').value.trim();
+      const customer = document.getElementById('pm-customer').value.trim();
+      if (!fileNo || !customer) return alert('يرجى إدخال رقم الملف واسم العميل');
+
+      const data = {
+        fileNo,
+        customer,
+        phone: document.getElementById('pm-phone').value.trim(),
+        address: document.getElementById('pm-address').value.trim(),
+        foremanId: document.getElementById('pm-foreman').value,
+        status: document.getElementById('pm-status').value,
+        delayReason: document.getElementById('pm-delay').value,
+        paint: document.getElementById('pm-paint').value.trim(),
+        glassSpec: document.getElementById('pm-glass').value.trim(),
+        approvedDate: document.getElementById('pm-approved').value.trim(),
+        deliveryDate: document.getElementById('pm-delivery').value.trim(),
+        installDate: document.getElementById('pm-install').value.trim(),
+        notes: document.getElementById('pm-notes').value.trim()
+      };
+
+      if (id) {
+        const idx = state.projects.findIndex(x => x.id === id);
+        state.projects[idx] = { ...state.projects[idx], ...data };
+      } else {
+        state.projects.unshift({
+          id: 'p_' + Date.now(),
+          ...data,
+          items: modalDraftItems
+        });
+      }
+      saveState();
+      closeProjectModal();
+      if (currentProjectId) renderProjectDetail();
+      refreshAll();
+    }
+
+    // FOREMEN VIEW & MODAL
+    function renderForemenView() {
+      const from = document.getElementById('foreman-from').value;
+      const to = document.getElementById('foreman-to').value;
+      const types = ['شباك', 'باب', 'سحاب', 'كرتن وول', 'سكاي لايت', 'فولدينج', 'هاندريل'];
+
+      document.getElementById('foremen-cards-grid').innerHTML = state.foremen.map(f => {
+        const projs = state.projects.filter(p => p.foremanId === f.id);
+        const typeCounts = {};
+        types.forEach(t => typeCounts[t] = 0);
+        let totalInstalled = 0, qaPassed = 0;
+
+        projs.forEach(p => {
+          (p.items || []).forEach(it => {
+            if (it.aluStatus === 'installed') {
+              const inRange = (!from || !it.date || it.date >= from) && (!to || !it.date || it.date <= to);
+              if (inRange) {
+                totalInstalled++;
+                if (typeCounts[it.type] !== undefined) typeCounts[it.type]++;
+                if (it.siliconeOut && it.scratchCheck) qaPassed++;
+              }
+            }
+          });
+        });
+
+        const qaRate = totalInstalled ? Math.round((qaPassed / totalInstalled) * 100) : 0;
+
+        return `
+          <div class="card p-5 space-y-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <h4 class="font-extrabold text-base text-slate-900">👷 ${f.name}</h4>
+                <p class="text-xs text-slate-500">${f.specialty} ${f.phone ? '• ' + f.phone : ''}</p>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button onclick="openForemanModal('${f.id}')" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg font-bold">تعديل</button>
+                <button onclick="deleteForeman('${f.id}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 px-2.5 py-1 rounded-lg font-bold">حذف</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div><span class="text-[11px] text-slate-500 block">المشاريع المسندة</span><strong class="text-base text-slate-900">${projs.length}</strong></div>
+              <div><span class="text-[11px] text-slate-500 block">إجمالي القطع المنجزة</span><strong class="text-base text-blue-700">${totalInstalled}</strong></div>
+              <div><span class="text-[11px] text-slate-500 block">نسبة اجتياز الجودة QA</span><strong class="text-base text-emerald-700">${qaRate}%</strong></div>
+            </div>
+            <div class="grid grid-cols-4 gap-2 text-center text-xs">
+              ${types.map(t => `
+                <div class="p-2 rounded-lg border border-slate-200 bg-white">
+                  <span class="text-slate-500 block text-[11px]">${t}</span>
+                  <strong class="text-slate-900 font-extrabold">${typeCounts[t]}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openForemanModal(id = null) {
+      if (id) {
+        const f = state.foremen.find(x => x.id === id);
+        document.getElementById('fm-id').value = f.id;
+        document.getElementById('fm-name').value = f.name;
+        document.getElementById('fm-phone').value = f.phone || '';
+        document.getElementById('fm-specialty').value = f.specialty || '';
+      } else {
+        document.getElementById('fm-id').value = '';
+        document.getElementById('fm-name').value = '';
+        document.getElementById('fm-phone').value = '';
+        document.getElementById('fm-specialty').value = '';
+      }
+      document.getElementById('foreman-modal').classList.remove('hidden');
+      document.getElementById('foreman-modal').classList.add('flex');
+    }
+
+    function closeForemanModal() {
+      document.getElementById('foreman-modal').classList.add('hidden');
+      document.getElementById('foreman-modal').classList.remove('flex');
+    }
+
+    function saveForemanModal() {
+      const id = document.getElementById('fm-id').value;
+      const name = document.getElementById('fm-name').value.trim();
+      if (!name) return alert('يرجى إدخال اسم الفورمان');
+      const data = {
+        name,
+        phone: document.getElementById('fm-phone').value.trim(),
+        specialty: document.getElementById('fm-specialty').value.trim() || 'تركيبات عامة'
+      };
+      if (id) {
+        const idx = state.foremen.findIndex(x => x.id === id);
+        state.foremen[idx] = { ...state.foremen[idx], ...data };
+      } else {
+        state.foremen.push({ id: 'f_' + Date.now(), ...data });
+      }
+      saveState();
+      closeForemanModal();
+      refreshAll();
+    }
+
+    function deleteForeman(id) {
+      if (state.foremen.length <= 1) return alert('يجب الإبقاء على فورمان واحد على الأقل');
+      if (!confirm('هل تريد حذف هذا الفورمان؟')) return;
+      state.foremen = state.foremen.filter(x => x.id !== id);
+      saveState();
+      refreshAll();
+    }
+
+    // RISKS & SHORTAGES REGISTER
+    function renderRisksView() {
+      const srcFilter = document.getElementById('risk-source-filter').value;
+      const list = state.projects.filter(p => {
+        const m = computeProjectMetrics(p);
+        const hasIssue = p.status === 'متوقف' || p.delayReason || m.shortages.length > 0;
+        if (!hasIssue) return false;
+        if (srcFilter && p.delayReason !== srcFilter) return false;
+        return true;
+      });
+
+      document.getElementById('risks-container').innerHTML = list.map(p => {
+        const m = computeProjectMetrics(p);
+        return `
+          <div class="card p-4 flex flex-wrap items-center justify-between gap-3 border-r-4 ${p.status === 'متوقف' ? 'border-r-rose-600' : 'border-r-amber-500'}">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-sm text-slate-900">#${p.fileNo} — ${p.customer}</span>
+                ${statusBadge(p.status)}
+                ${p.delayReason ? `<span class="badge bg-rose-100 text-rose-800">سبب العائق: ${p.delayReason}</span>` : ''}
+              </div>
+              <p class="text-xs text-slate-600">${p.notes || ''}</p>
+              <div class="text-xs text-slate-500">الفورمان: <strong>${getForemanName(p.foremanId)}</strong> • عدد الأكواد المتبقية/الناقصة: <strong class="text-rose-700">${m.shortages.length}</strong></div>
+            </div>
+            <button onclick="openProjectDetail('${p.id}')" class="bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg">
+              فتح كشف النواقص
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // GENERAL MANAGER REPORT
+    function renderGMReport() {
+      const from = document.getElementById('gm-from').value;
+      const to = document.getElementById('gm-to').value;
+      const types = ['شباك', 'باب', 'سحاب', 'كرتن وول', 'سكاي لايت', 'فولدينج', 'هاندريل'];
+      const counts = {};
+      types.forEach(t => counts[t] = 0);
+
+      const handedOverProjects = state.projects.filter(p => p.status === 'Handover');
+      const activeDeliveries = [];
+
+      state.projects.forEach(p => {
+        const installedCodes = [];
+        (p.items || []).forEach(it => {
+          if (it.aluStatus === 'installed') {
+            const inRange = (!from || !it.date || it.date >= from) && (!to || !it.date || it.date <= to);
+            if (inRange) {
+              if (counts[it.type] !== undefined) counts[it.type]++;
+              installedCodes.push(it.code);
+            }
+          }
+        });
+        if (installedCodes.length > 0) {
+          activeDeliveries.push({ project: p, codes: installedCodes });
+        }
+      });
+
+      document.getElementById('gm-report-content').innerHTML = `
+        <div class="card p-5 space-y-4">
+          <div class="border-b pb-3 flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-lg text-slate-900">تقرير الإنجاز التنفيذي للإدارة العامة</h3>
+              <p class="text-xs text-slate-500">الفترة: ${from || 'بداية السجل'} إلى ${to || 'اليوم'}</p>
+            </div>
+            <span class="badge bg-blue-100 text-blue-900">إجمالي المشاريع: ${state.projects.length}</span>
+          </div>
+
+          <!-- Counts by Category -->
+          <div>
+            <h4 class="font-bold text-sm text-slate-800 mb-2">1. إجمالي العناصر التي تم تركيبها حسب النوع:</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
+              ${types.map(t => `
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                  <span class="text-xs text-slate-500 block">${t}</span>
+                  <strong class="text-xl font-extrabold text-blue-700">${counts[t]}</strong>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Handed over projects -->
+          <div>
+            <h4 class="font-bold text-sm text-slate-800 mb-2">2. المشاريع التي تم تسليمها نهائياً (Handover) — (${handedOverProjects.length} مشاريع):</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              ${handedOverProjects.map(p => `
+                <div class="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                  <span class="font-bold text-emerald-950">#${p.fileNo} — ${p.customer} (${p.address})</span>
+                  <span class="text-emerald-700 font-bold">${p.installDate || 'تم التسليم'}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Breakdown by Site -->
+          <div>
+            <h4 class="font-bold text-sm text-slate-800 mb-2">3. تفصيل الإنجاز بالمواقع خلال الفترة:</h4>
+            <table class="w-full text-xs text-right border border-slate-200">
+              <thead class="bg-slate-800 text-white">
+                <tr>
+                  <th class="p-2">المشروع</th>
+                  <th class="p-2">الفورمان</th>
+                  <th class="p-2">عدد القطع المنجزة</th>
+                  <th class="p-2">نسبة الإنجاز الكلية</th>
+                  <th class="p-2">الحالة / الملاحظات</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                ${activeDeliveries.map(({ project: p, codes }) => {
+                  const m = computeProjectMetrics(p);
+                  return `
+                    <tr>
+                      <td class="p-2 font-bold">#${p.fileNo} - ${p.customer}</td>
+                      <td class="p-2">${getForemanName(p.foremanId)}</td>
+                      <td class="p-2 font-extrabold text-blue-700">${codes.length} قطعة</td>
+                      <td class="p-2 font-bold">${m.fieldPct}%</td>
+                      <td class="p-2">${p.status} ${p.delayReason ? '(' + p.delayReason + ')' : ''}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function copyGMWhatsApp() {
+      const from = document.getElementById('gm-from').value || 'بداية الفترة';
+      const to = document.getElementById('gm-to').value || 'اليوم';
+      const handoverCount = state.projects.filter(p => p.status === 'Handover').length;
+      const text = `*تقرير إنجاز المشاريع (${from} - ${to})*
+• المشاريع المسلمة (Handover): ${handoverCount}
+• المشاريع قيد التنفيذ: ${state.projects.filter(p => p.status === 'جاري التركيب').length}
+• المشاريع المتوقفة: ${state.projects.filter(p => p.status === 'متوقف').length}
+تم التحديث عبر لوحة إدارة مشاريع الألمنيوم.`;
+      navigator.clipboard.writeText(text);
+      alert('تم نسخ ملخص تقرير المدير العام للواتساب!');
+    }
+
+    // OWNER EXECUTIVE VIEW
+    function renderOwnerView() {
+      const handedOver = state.projects.filter(p => p.status === 'Handover');
+      const nearClose = state.projects.filter(p => {
+        const m = computeProjectMetrics(p);
+        return p.status !== 'Handover' && m.remaining > 0 && m.remaining <= 5;
+      });
+      let extraCount = 0, rectCount = 0;
+      state.projects.forEach(p => {
+        (p.items || []).forEach(it => {
+          if (it.scope === 'إضافي') extraCount++;
+          if (it.scope === 'تعديل / تلف') rectCount++;
+        });
+      });
+      const highRisk = state.projects.filter(p => p.status === 'متوقف' || p.delayReason);
+
+      document.getElementById('owner-report-content').innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="card p-4 border-r-4 border-r-emerald-600">
+            <span class="text-xs font-bold text-slate-500">مشاريع مسلمة (مستحقة للتحصيل)</span>
+            <div class="text-2xl font-extrabold text-emerald-700 mt-1">${handedOver.length} مشاريع</div>
+            <span class="text-[11px] text-slate-500">جاهزة لإغلاق الدفعات الختامية</span>
+          </div>
+          <div class="card p-4 border-r-4 border-r-amber-500">
+            <span class="text-xs font-bold text-slate-500">معلقة على 1–5 قطع للإغلاق</span>
+            <div class="text-2xl font-extrabold text-amber-600 mt-1">${nearClose.length} مشاريع</div>
+            <span class="text-[11px] text-slate-500">أولوية لتحرير التدفق النقدي</span>
+          </div>
+          <div class="card p-4 border-r-4 border-r-blue-600">
+            <span class="text-xs font-bold text-slate-500">أعمال إضافية vs تعديلات/تلفيات</span>
+            <div class="text-2xl font-extrabold text-blue-700 mt-1">${extraCount} إضافي / ${rectCount} تلف</div>
+            <span class="text-[11px] text-slate-500">مطالبات إضافية وضبط الهدر</span>
+          </div>
+          <div class="card p-4 border-r-4 border-r-rose-600">
+            <span class="text-xs font-bold text-slate-500">مشاريع متوقفة أو متأخرة</span>
+            <div class="text-2xl font-extrabold text-rose-700 mt-1">${highRisk.length} مشاريع</div>
+            <span class="text-[11px] text-slate-500">تتطلب قرار إداري أو متابعة</span>
+          </div>
+        </div>
+
+        <div class="card p-5 space-y-3">
+          <h4 class="font-extrabold text-base text-slate-900">💰 أولويات التسليم وإغلاق الدفعات (Cashflow & Handover Priority)</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-right border border-slate-200">
+              <thead class="bg-slate-900 text-white">
+                <tr>
+                  <th class="p-2.5">رقم الملف</th>
+                  <th class="p-2.5">العميل</th>
+                  <th class="p-2.5">نسبة الإنجاز</th>
+                  <th class="p-2.5">القطع المتبقية</th>
+                  <th class="p-2.5">السبب / العائق المباشر</th>
+                  <th class="p-2.5">الإجراء المطلوب للإغلاق</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                ${nearClose.map(p => {
+                  const m = computeProjectMetrics(p);
+                  return `
+                    <tr>
+                      <td class="p-2.5 font-extrabold text-blue-700">${p.fileNo}</td>
+                      <td class="p-2.5 font-bold">${p.customer}</td>
+                      <td class="p-2.5 font-extrabold text-emerald-700">${m.fieldPct}%</td>
+                      <td class="p-2.5 font-bold text-rose-600">${m.remaining} قطعة</td>
+                      <td class="p-2.5">${p.delayReason || 'تقفيل نهائي'}</td>
+                      <td class="p-2.5 text-slate-600">${p.notes}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function exportOwnerCSV() {
+      const headers = ['File#', 'Customer', 'Address', 'Foreman', 'Status', 'Delay Reason', 'Field %', 'QA %', 'Remaining Items', 'Notes'];
+      const rows = state.projects.map(p => {
+        const m = computeProjectMetrics(p);
+        return [p.fileNo, p.customer, p.address, getForemanName(p.foremanId), p.status, p.delayReason || '', m.fieldPct + '%', m.qaPct + '%', m.remaining, (p.notes || '').replace(/,/g, ' ')];
+      });
+      const csv = '﻿' + [headers.join(','), ...rows.map(r => r.join(','))].join('
+');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Owner_Executive_Report_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    function copyOwnerWhatsApp() {
+      const handedOver = state.projects.filter(p => p.status === 'Handover').length;
+      const nearClose = state.projects.filter(p => { const m = computeProjectMetrics(p); return p.status !== 'Handover' && m.remaining > 0 && m.remaining <= 5; }).length;
+      const text = `*الملخص التنفيذي لمالك الشركة*
+• مشاريع مسلمة وجاهزة للتحصيل: ${handedOver}
+• مشاريع معلقة على 1-5 قطع للإغلاق: ${nearClose}
+• مشاريع متوقفة/متأخرة: ${state.projects.filter(p => p.status === 'متوقف' || p.delayReason).length}`;
+      navigator.clipboard.writeText(text);
+      alert('تم نسخ ملخص مالك الشركة للواتساب!');
+    }
+
+    function printSection(sectionId) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('print-target'));
+      document.getElementById(sectionId).classList.add('print-target');
+      window.print();
+    }
+
+    function exportBackupJSON() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `aluminum_pmo_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function importBackupJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          state.foremen = sanitizeAndHydrateForemen(parsed.foremen);
+          state.projects = sanitizeAndHydrateProjects(parsed.projects);
+          saveState();
+          refreshAll();
+          alert('تم استيراد النسخة الاحتياطية بنجاح!');
+        } catch (err) {
+          alert('ملف غير صالح');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function refreshAll() {
+      updateSidebarBadges();
+      populateForemanDropdowns();
+      renderDashboard();
+      renderProjectsTable();
+      renderForemenView();
+      renderRisksView();
+      renderGMReport();
+      renderOwnerView();
+    }
+
+    // Init
+    document.getElementById('today-date').textContent = new Date().toLocaleDateString('ar-KW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    loadState();
+    refreshAll();
+  </script>
+</body>
+</html>
