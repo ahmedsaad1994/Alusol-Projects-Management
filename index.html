@@ -1,3 +1,8 @@
+
+
+
+رمز HTML
+index
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -521,7 +526,7 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'alu_pmo_dashboard_v5';
+    const STORAGE_KEY = 'alu_pmo_dashboard_v6';
     let currentProjectId = null;
     let modalDraftItems = [];
     let charts = {};
@@ -1553,11 +1558,7 @@
       const from = document.getElementById('gm-from').value || 'بداية الفترة';
       const to = document.getElementById('gm-to').value || 'اليوم';
       const handoverCount = state.projects.filter(p => p.status === 'Handover').length;
-      const text = `*تقرير إنجاز المشاريع (${from} - ${to})*
-• المشاريع المسلمة (Handover): ${handoverCount}
-• المشاريع قيد التنفيذ: ${state.projects.filter(p => p.status === 'جاري التركيب').length}
-• المشاريع المتوقفة: ${state.projects.filter(p => p.status === 'متوقف').length}
-تم التحديث عبر لوحة إدارة مشاريع الألمنيوم.`;
+      const text = `*تقرير إنجاز المشاريع (${from} - ${to})*\n• المشاريع المسلمة (Handover): ${handoverCount}\n• المشاريع قيد التنفيذ: ${state.projects.filter(p => p.status === 'جاري التركيب').length}\n• المشاريع المتوقفة: ${state.projects.filter(p => p.status === 'متوقف').length}\nتم التحديث عبر لوحة إدارة مشاريع الألمنيوم.`;
       navigator.clipboard.writeText(text);
       alert('تم نسخ ملخص تقرير المدير العام للواتساب!');
     }
@@ -1655,10 +1656,7 @@
     function copyOwnerWhatsApp() {
       const handedOver = state.projects.filter(p => p.status === 'Handover').length;
       const nearClose = state.projects.filter(p => { const m = computeProjectMetrics(p); return p.status !== 'Handover' && m.remaining > 0 && m.remaining <= 5; }).length;
-      const text = `*الملخص التنفيذي لمالك الشركة*
-• مشاريع مسلمة وجاهزة للتحصيل: ${handedOver}
-• مشاريع معلقة على 1-5 قطع للإغلاق: ${nearClose}
-• مشاريع متوقفة/متأخرة: ${state.projects.filter(p => p.status === 'متوقف' || p.delayReason).length}`;
+      const text = `*الملخص التنفيذي لمالك الشركة*\n• مشاريع مسلمة وجاهزة للتحصيل: ${handedOver}\n• مشاريع معلقة على 1-5 قطع للإغلاق: ${nearClose}\n• مشاريع متوقفة/متأخرة: ${state.projects.filter(p => p.status === 'متوقف' || p.delayReason).length}`;
       navigator.clipboard.writeText(text);
       alert('تم نسخ ملخص مالك الشركة للواتساب!');
     }
@@ -1714,3 +1712,4 @@
   </script>
 </body>
 </html>
+Processed and analyzed in code
